@@ -85,6 +85,36 @@ test('restores page and combines facets, sorting and text search through the URL
   await expect(page.getByText('Nenhum NFT encontrado.')).toBeVisible()
 })
 
+test('applies the drafted price range and clears it without removing other filters', async ({ page }) => {
+  await page.goto('/?minPrice=1.18&maxPrice=1.20')
+  await openFilters(page)
+  const ethereum = page.getByRole('button', { name: 'Ethereum', exact: true })
+  await ethereum.click()
+  const names = results(page).getByRole('heading')
+  await expect(names).toHaveText(['Emerald Ape #042'])
+
+  const maximum = page.getByRole('slider', { name: 'Máximo ETH' })
+  await maximum.press('Home')
+  await expect(maximum).toHaveValue('1.18')
+  await expect(names).toHaveText(['Emerald Ape #042'])
+  await page.getByRole('button', { name: 'Aplicar', exact: true }).click()
+  await expect(results(page).getByText('Nenhum NFT encontrado.')).toBeVisible()
+
+  await maximum.press('ArrowRight')
+  await page.getByRole('button', { name: 'Aplicar', exact: true }).click()
+  await expect(names).toHaveText(['Emerald Ape #042'])
+  await page.reload()
+  await openFilters(page)
+  await expect(maximum).toHaveValue('1.19')
+  await page.getByRole('button', { name: 'Limpar preço', exact: true }).click()
+  await expect(page).not.toHaveURL(/(?:min|max)Price=/)
+  await expect(ethereum).toHaveAttribute('aria-pressed', 'true')
+  await expect(names).toHaveCount(6)
+  await ethereum.click()
+  await expect(page).not.toHaveURL(/\?network=/)
+  await expect(names).toHaveCount(9)
+})
+
 test('keeps the catalog in view when changing tab and sort', async ({ page }) => {
   await page.goto('/')
   await expect(results(page).getByRole('heading').first()).toBeVisible()

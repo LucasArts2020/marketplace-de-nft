@@ -33,7 +33,13 @@ export function PriceRange({ minPrice, maxPrice, onApply }: {
               min={0} max={ceiling} step="0.01" value={max} onChange={(event) => setMax(Math.max(event.target.valueAsNumber, min))} />
           </div>
           <p className="mb-2 text-xs">Preço: {format.format(min)} – {format.format(max)} ETH</p>
-          <Button type="submit" className="min-h-9 rounded px-3 text-xs">Aplicar</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" className="min-h-9 rounded px-3 text-xs">Aplicar</Button>
+            {(minPrice || maxPrice) && (
+              <Button type="button" variant="outline" className="min-h-9 rounded px-3 text-xs"
+                onClick={() => onApply({ minPrice: '', maxPrice: '' })}>Limpar preço</Button>
+            )}
+          </div>
         </div>
       </fieldset>
     </form>
