@@ -137,4 +137,3 @@ Remove-Item Env:KURIO_E2E_URL
 ```
 
 Código-fonte, `package-lock.json`, `public/art`, `public/mockServiceWorker.js`, fixtures em `src/mocks`, testes, baselines, `playwright.config.ts`, `scripts/lighthouse.mjs` e `vercel.json` compõem a entrega. A publicação não requer credenciais privadas para uso. Mantenha o projeto Vercel e o domínio ativos durante a avaliação.
-

@@ -171,3 +171,11 @@ PASSOU 89 · FALHOU 0 · PARCIAL 18 · NÃO VERIFICADO 0
 **Publicada e validada em produção. Aceite integral dos 107 requisitos ainda pendente.** O deploy, os fluxos principais, as baselines e as metas Lighthouse passaram. Permanecem ressalvas de fidelidade, acessibilidade manual e cobertura de estados específicos.
 
 **Pontuação estimada de reavaliação: 88/100.** Fidelidade 15/20, fluxos 18/20, integração 14/15, tempo real 9/10, mocks 9/10, testes 9/10, acessibilidade 4/5, performance 5/5 e documentação 5/5.
+
+## Revisão da seção 12 em 09/11/2026
+
+A entrega inclui fonte, lockfile, assets, worker MSW, fixtures, testes, baselines e configuração Lighthouse. README ampliado com variáveis opcionais, comandos e exemplos executáveis de todos os controles de falha. ARCHITECTURE reescrito conforme o código atual, incluindo sessão de uma hora, persistência, cache, transações, idempotência, reconciliação e desvios de UX/Figma. Contratos atualizados para criadores e retorno de favoritos.
+
+Validação em clone local novo, sem node_modules, .env.local ou .vercel: npm ci, typecheck e lint aprovados. Build otimizado executado pelo Playwright e Lighthouse. Foram acrescentados testes de entrada direta e refresh em detalhe, carrinho e checkout protegido, em desktop e mobile.
+
+Limitação identificada pelo npm audit: 10 alertas moderados na cadeia de desenvolvimento ESLint/typescript-eslint, derivados de minimatch. npm audit --omit=dev retornou zero vulnerabilidades. O ajuste sugerido automaticamente envolve downgrade de versões principais das ferramentas e não foi aplicado como correção automática. Os mocks não dependem dessas ferramentas no navegador. Essa pendência deve ser revisada em manutenção de dependências.
