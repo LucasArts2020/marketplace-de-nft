@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 test('restores persisted market and cart fixtures on reset', async ({ page }) => {
   await page.goto('/nfts/emerald-ape-042')
   const heading = page.getByRole('heading', { name: 'Emerald Ape #042' })
+  const visiblePrice = (value: string) => page.getByText(value, { exact: true }).filter({ visible: true })
   await expect(heading).toBeVisible()
   const buy = page.getByRole('button', { name: /adicionar ao carrinho/i })
   await buy.click()
@@ -12,12 +13,16 @@ test('restores persisted market and cart fixtures on reset', async ({ page }) =>
     body: JSON.stringify({ nftId: 'emerald-ape-042', editionId: 'limited', priceEth: '7.15' }),
   })).status)
   expect(edited).toBe(204)
-  await expect(page.getByText('7.15 ETH', { exact: true })).toBeVisible()
+  await expect(visiblePrice('7.15 ETH')).toBeVisible()
   await page.reload()
-  await expect(page.getByText('7.15 ETH', { exact: true })).toBeVisible()
-  expect(await page.evaluate(async () => (await fetch('/__demo/reset', { method: 'POST' })).status)).toBe(204)
+  await expect(visiblePrice('7.15 ETH')).toBeVisible()
+  expect(await page.evaluate(async () => {
+    const response = await fetch('/__demo/reset', { method: 'POST' })
+    if (response.ok) localStorage.removeItem('kurio.guest')
+    return response.status
+  })).toBe(204)
   await page.reload()
-  await expect(page.getByText('1.19 ETH', { exact: true })).toBeVisible()
+  await expect(visiblePrice('1.19 ETH')).toBeVisible()
   await page.goto('/cart')
   await expect(page.getByText('Seu carrinho está vazio.')).toBeVisible()
 })

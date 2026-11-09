@@ -70,6 +70,6 @@ A auditoria Lighthouse faz build, sobe preview na porta 4183 e executa três rod
 
 ## Publicação
 
-O [repositório de entrega](https://github.com/LucasArts2020/marketplace-de-nft) usa `vercel.json` para build Vite, fallback SPA e revalidação do service worker. Para rodar a suíte contra uma URL publicada, defina `KURIO_E2E_URL` com a origem HTTPS e execute `npm run test:e2e`.
+A [aplicação publicada](https://marketplace-de-nft.vercel.app) está na Vercel. O [repositório de entrega](https://github.com/LucasArts2020/marketplace-de-nft) usa `vercel.json` para build Vite, fallback SPA e revalidação do service worker. Para rodar a suíte contra uma URL publicada, defina `KURIO_E2E_URL` com a origem HTTPS e execute `npm run test:e2e`.
 
-Consulte o [enunciado original](docs/DESAFIO_ORIGINAL.md), a [arquitetura](ARCHITECTURE.md), os [contratos](docs/CONTRATOS.md) e a [referência visual](docs/FIGMA.md).
+Consulte o [enunciado original](docs/DESAFIO_ORIGINAL.md), a [arquitetura](ARCHITECTURE.md), os [contratos](docs/CONTRATOS.md) a [referência visual](docs/FIGMA.md) e o [relatório de entrega](FINAL_DELIVERY_REPORT.md).
