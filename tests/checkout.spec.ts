@@ -75,6 +75,7 @@ test('confirms a simulated purchase, survives refresh and deducts purchased item
   await page.getByRole('link', { name: 'Voltar ao carrinho' }).click()
   await expect(page.getByText('Seu carrinho está vazio.')).toBeVisible()
   await page.getByRole('button', { name: 'Sair' }).click()
+  await expect(page.getByRole('button', { name: 'Sair' })).toHaveCount(0)
   await page.goto(orderUrl)
   await page.getByRole('link', { name: 'Entrar e continuar' }).click()
   await page.getByLabel('E-mail').fill('bia@kurio.test')
