@@ -53,6 +53,15 @@ body {
   height: 36px;
 }
 
+.catalog-sort {
+  color-scheme: dark;
+}
+
+.catalog-sort option {
+  background-color: var(--color-card);
+  color: var(--color-foreground);
+}
+
 .catalog-price-track::before {
   content: "";
   height: 3px;

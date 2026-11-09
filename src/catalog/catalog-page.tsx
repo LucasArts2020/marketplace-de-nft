@@ -101,8 +101,6 @@ export function CatalogPage({ search, onNavigate }: {
         <PriceRange key={search.minPrice + ':' + search.maxPrice} minPrice={search.minPrice} maxPrice={search.maxPrice} onApply={update} />
         {data && <Facet label="Rede" values={data.facets.network} counts={data.facetCounts.network} selected={search.network}
           onChange={(network) => update({ network })} />}
-        {data && <div className="md:hidden"><Facet label="Filtrar séries" values={data.facets.collection}
-          selected={search.collection} onChange={(collection) => update({ collection })} /></div>}
       </div>
       {!loading && featured && !search.q && (
         <section aria-label="NFT em destaque" className="hidden bg-card lg:block">
@@ -118,15 +116,6 @@ export function CatalogPage({ search, onNavigate }: {
       </aside>
       <div className="min-w-0 space-y-5">
       <h2 id="catalog-title" tabIndex={-1} className="sr-only focus:not-sr-only">Catálogo</h2>
-      <div className="hidden flex-wrap items-start gap-3 md:flex">
-        {data && (
-          <details className="rounded-lg border border-edge bg-card px-3 text-sm">
-            <summary className="cursor-pointer py-3">Séries{search.collection.length ? ` (${search.collection.length})` : ''}</summary>
-            <Facet label="Filtrar séries" values={data.facets.collection} selected={search.collection}
-              onChange={(collection) => update({ collection })} />
-          </details>
-        )}
-      </div>
       <div className="mobile-catalog-options flex flex-wrap items-center justify-between gap-x-3 text-xs sm:text-sm">
         <div role="group" aria-label="Exibir" className="flex flex-wrap gap-x-2 md:gap-x-4">
           {([['all', 'Todos os NFTs'], ['new', 'Novos lançamentos'], ['trending', 'Em alta']] as const).map(([tab, label]) => (
@@ -136,7 +125,7 @@ export function CatalogPage({ search, onNavigate }: {
         </div>
         <label className="flex min-h-11 items-center gap-1">
           Ordenar por
-          <select className="min-h-11 min-w-0 rounded-md px-1" value={search.sort}
+          <select className="catalog-sort min-h-11 min-w-0 rounded-md bg-ink px-1 text-foreground" value={search.sort}
             onChange={(event) => update({ sort: parseCatalogSearch({ sort: event.target.value }).sort })}>
             <option value="recent">Listados recentemente</option>
             <option value="price-asc">Menor preço</option>

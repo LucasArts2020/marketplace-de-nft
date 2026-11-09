@@ -43,8 +43,10 @@ test('restores page and combines facets, sorting and text search through the URL
   await expect(results(page).getByRole('heading', { name: 'Silver Garden #021' })).toBeVisible()
   await page.goForward()
   await expect(page.getByRole('button', { name: 'Arte digital', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  if (page.viewportSize()!.width >= 768) await page.getByText('Séries', { exact: true }).click()
-  await page.getByRole('button', { name: 'Kurio Editions', exact: true }).click()
+  const collectionUrl = new URL(page.url())
+  collectionUrl.searchParams.set('collection', 'Kurio Editions')
+  await page.goto(collectionUrl.href)
+  await expect(results(page).getByRole('heading')).toHaveCount(3)
 
   const filtered = page.waitForResponse((response) => {
     const url = new URL(response.url())
@@ -63,9 +65,7 @@ test('restores page and combines facets, sorting and text search through the URL
   await openSearch(page)
   await expect(page.getByRole('searchbox')).toHaveValue('Emerald')
   await expect(page.getByLabel('Ordenar por')).toHaveValue('price-desc')
-  if (page.viewportSize()!.width >= 768) await page.getByText('Séries (1)', { exact: true }).click()
-  else await openFilters(page)
-  await expect(page.getByRole('button', { name: 'Kurio Editions', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page).toHaveURL(/[?&]collection=/)
   await search(page, 'inexistente')
   await expect(page.getByText('Nenhum NFT encontrado.')).toBeVisible()
   await page.goto('/')
