@@ -1,0 +1,11 @@
+node_modules/
+dist/
+playwright-report/
+test-results/
+.env.local
+.env.*.local
+.vercel/
+audit/lighthouse/latest/
+
+.vercel
+.env*

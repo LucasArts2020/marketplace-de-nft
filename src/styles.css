@@ -1,0 +1,460 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #140d0a;
+  --color-foreground: #f5f1eb;
+  --color-primary: #d28a4c;
+  --color-secondary: #b39463;
+  --color-card: #241612;
+  --color-surface: #2f1d15;
+  --color-edge: #3f2319;
+  --color-accent: #e89b55;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-foreground);
+  font-family: "Roboto Mono Variable", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+.market-shell {
+  width: min(1200px, calc(100% - clamp(32px, 7vw, 80px)));
+  margin-inline: auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 3.5vw, 48px);
+  padding-block: 20px;
+}
+
+.market-footer {
+  border-top: 1px solid var(--color-edge);
+  color: var(--color-secondary);
+  font-size: .8125rem;
+}
+
+.market-footer li a {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+}
+
+[data-screen="nft"] > main {
+  min-height: 100svh;
+}
+
+.catalog-price-track {
+  position: relative;
+  display: grid;
+  align-items: center;
+  height: 36px;
+}
+
+.catalog-price-track::before {
+  content: "";
+  height: 3px;
+  margin-inline: 9px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--color-edge) var(--range-start),
+    var(--color-primary) var(--range-start), var(--color-primary) var(--range-end),
+    var(--color-secondary) var(--range-end));
+}
+
+.catalog-price-track input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.catalog-price-track input::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-ink);
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+
+.catalog-price-track input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-ink);
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+
+.market-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  font-size: .875rem;
+}
+
+.market-header-row {
+  position: relative;
+}
+
+.header-search {
+  position: relative;
+}
+
+.header-search-trigger {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+
+.header-search-trigger:hover,
+.header-search[data-open="true"] .header-search-trigger {
+  background: var(--color-surface);
+}
+
+.header-search-form {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  z-index: 15;
+  display: flex;
+  width: min(320px, calc(100vw - 88px));
+  gap: 6px;
+  border-radius: 8px;
+  background: var(--color-card);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(8px) scaleX(.92);
+  transform-origin: right center;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.header-search[data-open="true"] .header-search-form {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+@media (min-width: 768px) {
+  .header-search-form {
+    top: 100%;
+    right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-search-trigger,
+  .header-search-form {
+    transition: none;
+  }
+}
+
+.market-wordmark {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: .875rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.market-nav-menu,
+.market-nav-actions {
+  display: contents;
+}
+
+.market-cart-count {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: 3px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-ink);
+  font-size: .625rem;
+  line-height: 1;
+}
+
+@media (min-width: 768px) {
+  .market-wordmark {
+    position: absolute;
+    inset: 0 auto auto 0;
+  }
+
+  .market-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+  }
+
+  .market-nav-menu,
+  .market-nav-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .market-nav-menu {
+    grid-column: 2;
+    gap: clamp(14px, 2.8vw, 40px);
+  }
+
+  .market-nav-actions {
+    justify-self: end;
+    gap: clamp(12px, 1.8vw, 26px);
+  }
+
+  .market-nav-home[data-current="true"] {
+    color: var(--color-accent);
+    box-shadow: 0 2px var(--color-accent);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .market-nav-link[aria-disabled="true"] {
+    color: var(--color-secondary);
+  }
+
+  .market-nav .market-nav-login {
+    min-height: 36px;
+    padding-inline: 10px;
+    border-radius: 6px;
+    background: var(--color-primary);
+    color: var(--color-ink);
+  }
+
+  .market-account-links {
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+}
+
+.market-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.market-nav-link[data-status="active"],
+.market-nav-link[aria-current="location"] {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+.market-nav-home[data-current="true"] {
+  color: var(--color-accent);
+}
+
+@media (width < 768px) {
+  .market-shell {
+    width: calc(100% - 32px);
+    gap: 16px;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+
+  html {
+    scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .market-nav {
+    position: fixed;
+    z-index: 10;
+    inset: auto 0 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    border: 1px solid var(--color-edge);
+    border-radius: 24px 24px 0 0;
+    background: var(--color-card);
+    padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+    font-size: .625rem;
+  }
+
+  .market-nav-link {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 52px;
+  }
+
+  .market-nav-creators { position: relative; justify-content: flex-end; }
+  .market-nav-center {
+    position: absolute;
+    top: -22px;
+    display: grid;
+    width: 50px;
+    height: 50px;
+    place-items: center;
+    border: 4px solid var(--color-card);
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: var(--color-ink);
+  }
+
+  .market-shell[data-screen="home"] .market-header,
+  .market-shell[data-screen="nft"] .market-header,
+  .market-shell[data-screen="cart"] .market-header,
+  .market-shell[data-screen="checkout"] .market-header { border: 0; padding: 0; }
+
+  [data-screen="home"] .market-wordmark,
+  [data-screen="home"] .market-account-links,
+  :is([data-screen="nft"], [data-screen="cart"], [data-screen="checkout"]) .market-header-row > :is(.market-wordmark, .market-nav),
+  [data-screen="nft"] .market-account-links,
+  :is([data-screen="cart"], [data-screen="checkout"]) footer { display: none; }
+
+  .market-shell:is([data-screen="nft"], [data-screen="cart"], [data-screen="checkout"]) {
+    gap: 0;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+
+  [data-screen="home"] { gap: 0; }
+  .mobile-catalog-tools { display: flex; gap: 8px; }
+  .mobile-catalog-search {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    align-items: center;
+    border-radius: 12px;
+    background: var(--color-card);
+  }
+  .mobile-catalog-search button { display: grid; flex: 0 0 44px; min-height: 44px; place-items: center; }
+  .mobile-catalog-search input { width: 100%; min-width: 0; min-height: 44px; padding-inline-end: 8px; }
+  .mobile-catalog-search input::placeholder { color: var(--color-secondary); font-size: .75rem; }
+  .mobile-catalog-filters[data-open="false"] { display: none; }
+  .mobile-catalog-options { gap: 0; }
+  .mobile-art-frame { border-radius: 14px; }
+  .mobile-catalog-tools { margin-bottom: 10px; }
+  .market-hero { min-height: 0; margin-bottom: 10px; }
+  .market-hero a { min-height: 36px; padding-inline: 0; background: none; color: var(--color-accent); }
+  .market-hero a::after { content: " →"; }
+
+  .mobile-back {
+    display: inline-grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--color-card);
+    color: var(--color-accent);
+    font-size: 1.5rem;
+  }
+  .mobile-nft { position: relative; }
+  .mobile-nft-info {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+  .mobile-nft-info > * { grid-column: 1 / -1; margin-block: 0; }
+  .mobile-nft-info > h1 { grid-column: 1; }
+  .mobile-nft-info > .mobile-nft-rating { grid-column: 2; }
+  .mobile-nft-rating:empty { display: none; }
+  .mobile-nft-info > dl { order: -1; }
+  .mobile-nft-info > :is(h1, .mobile-nft-rating, div:has(> h2), fieldset) { order: -2; }
+  .mobile-nft-favorite { position: absolute; top: -60px; right: 0; }
+  .mobile-nft-favorite :is(button, a) { width: 44px; padding: 0; border-radius: 50%; font-size: 1.25rem; }
+  .mobile-nft-favorite [role="alert"] { max-width: 210px; padding: 8px; background: var(--color-ink); }
+  .mobile-nft-purchase { padding: 12px; border-radius: 16px; background: var(--color-surface); }
+  .mobile-nft-actions { width: 100%; }
+  .mobile-nft-actions > button { flex: 1; border-radius: 999px; }
+
+  .mobile-flow-heading { display: flex; align-items: center; gap: 12px; }
+  .mobile-cart-account { display: block; text-align: right; }
+  :is([data-screen="cart"], [data-screen="checkout"]) .market-account-links { margin-block-end: 8px; }
+  .mobile-flow-cta { min-height: 48px; border-radius: 999px; }
+  .mobile-cart-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+  }
+  .mobile-cart-line > [role="alert"] { grid-column: 1 / -1; }
+  .mobile-cart-controls { justify-content: flex-end; width: 100px; gap: 2px; font-size: .75rem; }
+  .mobile-cart-controls button { height: 36px; padding-inline: 10px; border-radius: 999px; }
+  .mobile-cart-controls button:last-child { font-size: .625rem; }
+  .mobile-coupon-form { display: flex; align-items: center; gap: 8px; }
+  .mobile-coupon-form label { min-width: 0; flex: 1; }
+  .mobile-coupon-form button { border-radius: 999px; }
+  .mobile-checkout-aside { display: flex; flex-direction: column; gap: 16px; }
+  .mobile-checkout-aside > * { margin-block: 0; }
+  .mobile-checkout-aside > :first-child:not(:last-child) { order: 1; }
+  .mobile-wallet-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--color-edge);
+    border-radius: 12px;
+    background: var(--color-card);
+  }
+  .mobile-wallet-card:has(:checked) { border-color: var(--color-primary); }
+  .mobile-wallet-card input { accent-color: var(--color-primary); }
+
+  .market-shell:is([data-screen="login"], [data-screen="register"]) {
+    padding-block: 0 env(safe-area-inset-bottom);
+    gap: 0;
+  }
+  :is([data-screen="login"], [data-screen="register"]) :is(.market-header-row, footer) { display: none; }
+  :is([data-screen="login"], [data-screen="register"]) .market-header { border: 0; padding: 0; }
+  .mobile-auth {
+    border: 0;
+    background: var(--color-ink);
+    padding: clamp(48px, 12dvh, 110px) clamp(8px, 4vw, 28px) 28px;
+    text-align: center;
+  }
+  .mobile-auth-brand { position: relative; justify-content: center; margin-bottom: clamp(32px, 7dvh, 64px); }
+  .mobile-auth-brand p { font-size: 1.5rem; color: var(--color-foreground); }
+  .mobile-auth-brand a { position: absolute; right: 0; border: 0; color: var(--color-secondary); }
+  .mobile-auth input { text-align: start; border-color: var(--color-edge); }
+  .mobile-auth input::placeholder { color: var(--color-secondary); font-size: .75rem; }
+  .mobile-auth-password { position: relative; }
+  .mobile-auth-password input { padding-inline-end: 80px; }
+  .mobile-auth-password button { position: absolute; inset: 0 0 0 auto; border: 0; font-size: .75rem; }
+}
+
+.market-hero {
+  background: #352116 url("/art/hero-mobile.svg") center / 100% 100%;
+}
+
+@media (min-width: 768px) {
+  .market-hero {
+    background: transparent;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.skeleton {
+  background: linear-gradient(105deg, #322018 25%, #513327 45%, #322018 65%);
+  background-size: 220% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton {
+    animation: shimmer 1.5s linear infinite;
+  }
+}
+
+@keyframes shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}

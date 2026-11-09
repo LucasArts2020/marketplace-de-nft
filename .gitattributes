@@ -1,0 +1,2 @@
+docs/DESAFIO_ORIGINAL.md -text
+audit/lighthouse/**/*.report.html -whitespace
