@@ -1,12 +1,21 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { errorMessage } from '../api/http'
 import { Button } from '../components/ui/button'
 import { useCart } from './use-cart'
 import { useRealtime } from '../socket/realtime-context'
 import { priceInEth, priceInWei } from '../contracts/eth'
+import { AccountDialog } from './account'
+import { useSession } from './session'
 
 export function CartPage() {
   const { cart, quote, mutation, enabled } = useCart(true)
+  const { session } = useSession()
+  const navigate = useNavigate()
+  const [authOpen, setAuthOpen] = useState(false)
+  const checkoutLabel = <>
+    <span className="md:hidden">Conectar e finalizar</span><span className="hidden md:inline">Finalizar compra</span>
+  </>
   const lines = cart.isError ? undefined : cart.data?.lines
   const { market } = useRealtime()
   const changed = lines?.some((line) => market[line.nftId]?.payload.editions?.some((edition) => edition.editionId === line.editionId))
@@ -93,9 +102,10 @@ export function CartPage() {
                 <dt className="border-t border-edge pt-3 font-bold">Total</dt><dd data-testid="cart-total" className="border-t border-edge pt-3 font-bold text-accent">{quote.data.totalEth} ETH</dd>
               </dl>
             )}
-            {quote.data && !quote.isError && <Button asChild className="mobile-flow-cta w-full"><Link to="/checkout">
-              <span className="md:hidden">Conectar e finalizar</span><span className="hidden md:inline">Finalizar compra</span>
-            </Link></Button>}
+            {quote.data && !quote.isError && (session
+              ? <Button asChild className="mobile-flow-cta w-full"><Link to="/checkout">{checkoutLabel}</Link></Button>
+              : <Button type="button" aria-haspopup="dialog" className="mobile-flow-cta w-full" onClick={() => setAuthOpen(true)}>{checkoutLabel}</Button>
+            )}
             {cart.data?.pendingOrderId && (
               <Link to="/orders/$id" params={{ id: cart.data.pendingOrderId }} className="text-primary underline">Acompanhar pedido</Link>
             )}
@@ -104,6 +114,8 @@ export function CartPage() {
       )}
       {mutation.isError && <p role="alert">{errorMessage(mutation.error, 'Não foi possível atualizar o carrinho.')}</p>}
       <Link to="/" className="inline-block text-primary underline">Continuar explorando</Link>
+      {authOpen && <AccountDialog onClose={() => setAuthOpen(false)}
+        onAuthenticated={() => void navigate({ to: '/checkout' })} />}
     </section>
   )
 }

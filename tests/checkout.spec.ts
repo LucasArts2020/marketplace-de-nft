@@ -5,11 +5,13 @@ async function checkout(page: Page) {
   await page.getByRole('button', { name: 'Adicionar ao carrinho' }).click()
   await expect(page.getByText('NFT adicionado ao carrinho.')).toBeVisible()
   await page.getByRole('link', { name: 'Carrinho', exact: true }).click()
-  await page.getByRole('link', { name: /Finalizar compra|Conectar e finalizar/ }).click()
-  await page.getByRole('link', { name: 'Entrar e continuar' }).click()
+  await page.getByRole('button', { name: /Finalizar compra|Conectar e finalizar/ }).click()
+  const dialog = page.getByRole('dialog', { name: 'Entrar na conta' })
+  await expect(dialog).toBeVisible()
+  await expect(page).toHaveURL(/\/cart$/)
   await page.getByLabel('E-mail').fill('ana@kurio.test')
   await page.getByLabel('Senha').fill('KurioDemo123!')
-  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Entrar', exact: true }).click()
   await expect(page).toHaveURL(/\/checkout$/)
 }
 

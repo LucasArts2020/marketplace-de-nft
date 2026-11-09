@@ -103,7 +103,10 @@ function SocialAccess({ className = '' }: { className?: string }) {
   )
 }
 
-function AccountDialog({ onClose }: { onClose: () => void }) {
+export function AccountDialog({ onClose, onAuthenticated }: {
+  onClose: () => void
+  onAuthenticated?: () => void
+}) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [register, setRegister] = useState(false)
 
@@ -128,7 +131,10 @@ function AccountDialog({ onClose }: { onClose: () => void }) {
           <button type="button" aria-label="Modo Criar conta" aria-pressed={register} onClick={() => setRegister(true)}
             className="min-h-9 aria-pressed:text-accent">Criar conta</button>
         </div>
-        <LoginPage key={String(register)} returnTo="/" register={register} onAuthenticated={close} />
+        <LoginPage key={String(register)} returnTo="/" register={register} onAuthenticated={() => {
+          close()
+          onAuthenticated?.()
+        }} />
         <SocialAccess className="mt-6" />
       </div>
     </dialog>

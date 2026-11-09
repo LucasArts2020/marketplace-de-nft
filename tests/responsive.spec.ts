@@ -108,10 +108,18 @@ test('renders the purchase flow with local art and without horizontal overflow',
     await expect(page.getByTestId('cart-total')).toBeVisible()
     await capture(page, testInfo, `carrinho-${width}`)
 
-    await page.getByRole('link', { name: /Finalizar compra|Conectar e finalizar/ }).click()
+    const checkoutName = /Finalizar compra|Conectar e finalizar/
     if (width !== 768) {
-      await page.getByRole('link', { name: 'Entrar e continuar' }).click()
-      await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible()
+      const checkoutButton = page.getByRole('button', { name: checkoutName })
+      await checkoutButton.click()
+      const dialog = page.getByRole('dialog', { name: 'Entrar na conta' })
+      await expect(dialog).toBeVisible()
+      await expect(page).toHaveURL(/\/cart$/)
+      await page.keyboard.press('Escape')
+      await expect(dialog).not.toBeVisible()
+      await expect(checkoutButton).toBeFocused()
+      await checkoutButton.click()
+      await expect(dialog.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible()
       await capture(page, testInfo, `login-${width}`)
       await page.getByRole('button', { name: 'Mostrar', exact: true }).click()
       await expect(page.getByLabel('Senha', { exact: true })).toHaveAttribute('type', 'text')
@@ -119,8 +127,8 @@ test('renders the purchase flow with local art and without horizontal overflow',
       await expect(page.getByLabel('Senha', { exact: true })).toHaveAttribute('type', 'password')
       await page.getByLabel('E-mail').fill('ana@kurio.test')
       await page.getByLabel('Senha').fill('KurioDemo123!')
-      await page.getByRole('button', { name: 'Entrar', exact: true }).click()
-    }
+      await dialog.getByRole('button', { name: 'Entrar', exact: true }).click()
+    } else await page.getByRole('link', { name: checkoutName }).click()
     await expect(page.getByRole('button', { name: 'Conectar carteira', exact: true })).toBeVisible()
     await expect(page.getByRole('region', { name: 'Seus NFTs' })).toBeVisible()
     await capture(page, testInfo, `pagamento-${width}`)
