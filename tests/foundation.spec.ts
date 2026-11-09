@@ -51,3 +51,18 @@ test('receives real Socket.IO events before and after an interrupted connection'
   const response = await page.evaluate(async () => (await fetch('/api/v1/nfts')).json())
   expect(response.catalogVersion).toBe(3)
 })
+
+for (const route of [
+  { path: '/nfts/emerald-ape-042', heading: 'Emerald Ape #042' },
+  { path: '/cart', heading: 'Carrinho de NFTs' },
+  { path: '/checkout', heading: 'Entre para continuar' },
+]) {
+  test(`supports direct entry and refresh at ${route.path}`, async ({ page }) => {
+    const response = await page.goto(route.path)
+    expect(response?.status()).toBe(200)
+    await expect(page.getByRole('heading', { name: route.heading, exact: true })).toBeVisible()
+    const refreshed = await page.reload()
+    expect(refreshed?.status()).toBe(200)
+    await expect(page.getByRole('heading', { name: route.heading, exact: true })).toBeVisible()
+  })
+}

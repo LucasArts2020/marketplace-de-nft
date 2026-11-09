@@ -1,4 +1,4 @@
-# Contratos propostos — API simulada v1
+# Contratos — API simulada v1
 
 Prefixo `/api/v1`. JSON UTF-8, IDs opacos, datas UTC ISO 8601. `Authorization: Bearer <token>` para conta; `X-Guest-Cart` para carrinho visitante (emitido pelo bootstrap). Recurso privado resolve identidade da credencial, nunca de um ID enviado no corpo. Revisões de entidades são inteiros monotônicos; listas recebem revisão do catálogo. IDs e enums devem ser validados em runtime.
 
@@ -10,8 +10,9 @@ Prefixo `/api/v1`. JSON UTF-8, IDs opacos, datas UTC ISO 8601. `Authorization: B
 | GET /session | credencial | 200 usuário, expiresAt |
 | POST /auth/logout | credencial | 204; revoga sessão. Expiração também resulta em 401 |
 | GET /nfts | q, tab (all/new/trending), category[], collection[], network[], minPrice, maxPrice, sort, page, pageSize | 200 items, total, page, pageSize, catalogVersion, facetas e destaques quando aplicável |
+| GET /creators | — | 200 perfis públicos com id, name, handle, avatar e ownedNfts de demonstração |
 | GET /nfts/:id | ID | 200 NFT com galeria e edições |
-| GET /favorites | sessão | 200 IDs e versão |
+| GET /favorites | sessão | 200 array de IDs de NFTs |
 | PUT /favorites/:nftId | sessão | 204 adiciona de modo idempotente |
 | DELETE /favorites/:nftId | sessão | 204 remove de modo idempotente |
 | GET /cart | sessão ou credencial anônima | 200 Cart |
@@ -57,3 +58,4 @@ Evento `{ eventId, type, resourceId, version, occurredAt, payload }`. `nft.updat
 Socket.IO no namespace padrão, path `/socket.io`, WS de texto. Conexão recebe catálogo; assinatura privada via evento textual autenticado com resposta textual (sem acknowledgement do protocolo), com vínculo validado pelo mock. Na troca de sessão, abrir conexão nova. Produção simulada não expõe sessão em query string nem compartilha canal privado por conta fornecida pelo cliente.
 
 Os controles da demonstração ficam fora do prefixo de negócio. `POST /__demo/socket` altera mercado, reemite eventos e corta ou restaura conexão. `POST /__demo/payment` seleciona `confirm`, `reject`, `connection-refused`, `timeout-before-commit` ou `timeout-after-commit`. `POST /__demo/reset` retorna 204 após restaurar o estado persistido. O procedimento do README completa o reset com limpeza das chaves Kurio e recarga. Os testes disparam controles pela rede e verificam resultados na UI.
+

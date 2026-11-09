@@ -1,62 +1,101 @@
 # Arquitetura da Kurio
 
-## Limites e responsabilidades
+Este documento descreve a implementação entregue. Os contratos HTTP e eventos estão em [docs/CONTRATOS.md](docs/CONTRATOS.md), os procedimentos de execução e falhas em [README.md](README.md) e a referência visual em [docs/FIGMA.md](docs/FIGMA.md).
 
-SPA React e TypeScript strict com Vite, TanStack Router, TanStack Query, Axios, Tailwind CSS e o [Button do padrão shadcn/ui](https://ui.shadcn.com/docs/components/button) adaptado em `src/components/ui/button.tsx`. Playwright e Lighthouse rodam contra build otimizado. Catálogo, conta, carteira e compra usam os handlers de rede simulados do MSW. Páginas editoriais, suporte, atividade, ofertas e downloads ficam fora do escopo.
+## Escopo e organização
 
-| Camada | Responsabilidade |
+SPA React + TypeScript strict, Vite, TanStack Router, TanStack Query, Axios, Tailwind CSS e Button baseado no padrão shadcn/ui. A aplicação publicada executa a mesma simulação local do desenvolvimento, sem backend privado, RPC blockchain ou serviços de autenticação externos.
+
+| Diretório | Responsabilidade |
 | --- | --- |
-| Rotas e features | Home `/`, detalhe `/nfts/:nftId`, carrinho `/cart`, login, cadastro, checkout, perfil, carteiras e `/orders/:orderId`. A rota do pedido mostra pendência ou recusa e só renderiza recibo após confirmação. Rota 404 explícita. |
-| Domínio e contratos | Modelos, validação de fronteiras, transições, aritmética ETH e DTOs versionados em [CONTRATOS](docs/CONTRATOS.md). Compartilhados sem depender de React ou MSW. |
-| Transporte e estado | Axios para todo REST de negócio; `socket.io-client` para eventos; Query para dados remotos e Router para URL/guards. Estado local para formulário, seleção, diálogos e conexão da carteira. |
-| Simulação | MSW HTTP + WebSocket, com store transacional local compartilhado pelos handlers. UI e hooks desconhecem cenários, fixtures e banco. Configuração de demonstração inicia interceptação antes da primeira chamada. |
+| `src/catalog` | Catálogo, filtros, detalhe, criadores e conteúdo editorial |
+| `src/commerce` | Sessão, conta, favoritos, carrinho, carteiras, checkout e recibo |
+| `src/api` | Transporte REST por Axios, timeout de 10 segundos e cancelamento por AbortSignal |
+| `src/contracts` | DTOs, validação, eventos e conversões exatas ETH/wei |
+| `src/socket` | Cliente Socket.IO, assinaturas, deduplicação e reconciliação |
+| `src/mocks` | Handlers MSW, fixtures de catálogo/contas, transações IndexedDB e publicação de eventos |
+| `public/art` | Assets locais, incluindo WebP em 480 e 960 px |
+| `tests` e `scripts` | Playwright, baselines visuais e auditoria Lighthouse |
 
-## Sessão e cache
+A UI consulta os adapters REST. Fixtures e cenários ficam na camada de mocks. Componentes não recebem respostas fictícias diretamente. O bootstrap aguarda `worker.start()` antes de renderizar e de importar o cliente Socket.IO, pois Engine.IO captura o construtor WebSocket ao carregar.
 
-- Identidades separadas: carrinho anônimo com credencial opaca; sessão fictícia com token opaco e expiração; cada recurso privado tem proprietário validado pelo handler. Token fica em armazenamento local controlado pelo adaptador de sessão para refresh; o mock persiste apenas hash salgado de senha. Trata-se de isolamento funcional da demonstração: quem controla o navegador pode inspecionar ou alterar seu armazenamento. Dados reais ficam fora do app.
-- Guard aguarda `GET /session` antes de renderizar rotas privadas. Retorno após login aceita apenas rotas internas válidas. Em 401 de uma sessão corrente, suspender envio, manter referência da rota e contexto mínimo por proprietário; nunca transferir rascunho, recibo ou tentativa para outra conta. No logout explícito, limpar rascunho da UI e trocar identidade anônima; o carrinho da conta permanece no mock. Registro técnico de tentativa permanece no mock para recuperação pela mesma conta.
-- A cada mudança de identidade: incrementar geração da sessão, cancelar consultas privadas, limpar cache privado e contextos transitórios, desconectar e remover listeners. Toda resposta tardia e callback verifica a geração original, inclusive 401 e rollback. Não persistir cache Query.
-- Catálogo: chave com busca, filtros normalizados, ordenação e página; URL é fonte da verdade. Alteração de filtros reinicia página; Axios recebe AbortSignal; respostas antigas só podem popular sua chave e não podem sobrescrever versões mais recentes. Chaves privadas incluem escopo de usuário/visitante e geração. Sem reaproveitar dados privados de uma chave anterior.
-- Catálogo e detalhe têm janela de 30 s de frescor. As consultas críticas configuram retry explícito e a cotação é revalidada nos pontos de decisão. Mutations de pedido usam recuperação explícita com a mesma chave e corpo. Reconexão revalida os recursos ativos.
-- Favoritos usam atualização otimista com cancelamento, snapshot e rollback por conta; serializar alterações do mesmo NFT para impedir rollback sobre clique posterior. Ao concluir, invalidar a chave pertinente. Views distinguem primeiro carregamento, vazio, erro, sucesso e atualização em segundo plano; shimmer mantém geometria e respeita movimento reduzido.
+## Estado, persistência e isolamento
 
-## Persistência, dinheiro e pedido
+| Estado | Fonte da verdade | Persistência |
+| --- | --- | --- |
+| Busca, abas, filtros, ordem e página | URL validada pelo Router | URL compartilhável, com defaults omitidos |
+| Recursos remotos | REST e store dos handlers | IndexedDB `kurio-demo-commerce`, versão 1, store `commerce` |
+| Cache da UI | TanStack Query | Memória da aba, sem persistência |
+| Credenciais opacas de sessão e visitante | Adaptadores de sessão/carrinho | `localStorage`, chaves `kurio.*` |
+| Rascunho e tentativa de compra | Checkout, separados por usuário | `sessionStorage` |
+| Formulários, diálogos e seleções | Componente responsável | Estado local |
 
-M04 implementa carrinhos, sessões e merge em uma transação IndexedDB. O armazenamento local guarda credenciais opacas. Web Locks serializa a criação do carrinho visitante entre abas. A troca de sessão incrementa a geração do cache privado e remonta os componentes de rota para descartar mensagens da sessão anterior. M05 persiste cotações autenticadas para revalidação no pedido. A tentativa de envio fica no armazenamento da aba, separada por conta, até o cliente observar um estado terminal. Na recuperação, o cliente consulta a chave primeiro e reaproveita a mesma requisição se o pedido ainda não existir.
+As operações do mock usam uma transação readwrite sobre o estado do comércio. Isso serializa alterações entre abas da mesma origem. Eventos só são publicados após o commit. O BroadcastChannel distribui notificações entre mocks das abas e cada UI recebe o evento pelo cliente Socket.IO. Navegadores, perfis e origens distintos têm bancos independentes. O ambiente publicado não é um marketplace compartilhado entre máquinas.
 
-O prazo e o resultado do pagamento são persistidos com o pedido. A reserva e a dedução usam a mesma transação do pedido. O mock retoma o agendamento após inscrição autenticada e também materializa transições vencidas em consultas REST. A rota de acompanhamento mantém uma consulta de contingência a cada 500 ms durante a queda e a cada 5 s com o Socket.IO conectado.
+## Política de sessão
 
-M06 armazena contas, perfil, carteiras e favoritos em IndexedDB. As duas contas de demonstração começam com carteira principal e a edição dessa carteira substitui a fixture. O cadastro começa sem carteira. Senhas persistem como hash SHA-256 com salt por conta nesta simulação. O checkout guarda um rascunho por conta no armazenamento da aba para retomar após expiração. A saída explícita remove esse rascunho. A troca de conta invalida a geração do cache privado e a API valida o proprietário do pedido em cada consulta.
+Login e cadastro emitem token opaco com validade absoluta de uma hora. Não existe refresh token ou renovação automática. `GET /session` valida a sessão antes de exibir conteúdo privado. Retornos após autenticação aceitam somente destinos internos da lista permitida.
 
-M07 publica eventos após o commit no IndexedDB. Um BroadcastChannel distribui notificações entre as instâncias do mock nas abas da mesma origem. Cada aba recebe os dados pelo cliente Socket.IO. Eventos de pedido são encaminhados somente a conexões com sessão válida do proprietário. O cliente descarta versões antigas ou repetidas e invalida as consultas afetadas. Ao reconectar, consulta novamente o REST para recuperar mudanças perdidas durante a queda.
+Mudanças de identidade incrementam uma geração, cancelam e removem consultas privadas, remontam o conteúdo da rota e recriam a conexão Socket.IO. Respostas e rollbacks privados verificam a geração antes de alterar o cache. O evento `storage` sincroniza a identidade entre abas. Recursos privados resolvem o proprietário pelo Bearer e não por IDs informados pelo usuário. Pedidos alheios retornam 404.
 
-- IndexedDB simulada e versionada por cenário: usuários, sessões, catálogo, carrinhos, cupons, favoritos, carteiras, cotações, pedidos e chaves. Transações abrangem estoque, reserva, ledger e carrinho quando necessário; testes isolam o contexto do navegador. Merge anônimo é atômico, de consumo único e soma por NFT/edição. Quantidade acima do estoque fica sinalizada para correção, sem descartar itens silenciosamente; cotação não é comprável nessa condição.
-- Valores ETH canônicos em strings com até 18 casas; converter para wei em BigInt nas operações, validar limites e quantidades inteiras positivas, nunca usar float. Descontos proporcionais truncam em wei, com total = subtotal − desconto + taxa. Exibição parte da string exata; revisão e recibo dão acesso ao valor integral.
-- Revisão fixa cotação com versão do carrinho e das edições, cupom, rede, taxas e validade. Handler de criação revalida e reserva estoque em transação antes de aceitar; 409 com nova cotação exige confirmação explícita e nova chave. Pendente pode virar confirmado ou recusado uma vez. Confirmação grava recibo imutável, consome reserva e deduz só as unidades compradas; recusa libera reserva. No carrinho, unidades em pedido pendente ficam bloqueadas para redução/remoção, permitindo somar unidades livres. Em timeout após gravação, consultar a tentativa ou repetir a mesma chave; nunca criar tentativa nova até resolver a anterior.
-- Trabalho pendente tem prazo e desfecho determinísticos persistidos. Scheduler do mock produz transições enquanto a página está ativa; handlers de leitura reprocessam transições vencidas após refresh. Não depende de manter uma aba rodando em segundo plano.
+Em 401, a sessão corrente expira e o checkout pode ser retomado pela mesma conta. O logout explícito revoga a sessão e as conexões de carteira correspondentes e remove o rascunho daquela conta. O carrinho autenticado continua persistido. A tentativa pendente fica separada por proprietário para recuperação, sem permitir duplicação ao trocar de conta.
 
-## Tempo real e cenários
+Tokens em localStorage e senhas com SHA-256 e salt são escolhas exclusivas da simulação. O usuário do navegador pode inspecionar e alterar seu banco. Uma implementação real exigiria backend confiável, política de cookies/tokens e hash de senha apropriado. Nenhum dado ou segredo real é necessário para avaliar esta entrega.
 
-REST e WebSocket usam o mesmo estado de domínio: mutação confirmada grava versão e depois publica evento. No modo mock, validar em M02 o binding `@mswjs/socket.io-binding` com `ws.link`, transporte exclusivamente WebSocket, namespace padrão e eventos JSON de texto. Não depender de polling do Engine.IO, acknowledgements, binários ou namespaces customizados. Referência: [documentação do binding](https://github.com/mswjs/socket.io-binding#limitations). Se houver incompatibilidade, testar um adaptador de protocolo em MSW; o cliente Socket.IO e o caminho real de rede permanecem obrigatórios.
+## Carrinho e precisão monetária
 
-A prova M02 usa MSW 2.10.5, binding 0.2.0 e socket.io-client 4.8.4. A versão publicada do binding expõe `toSocketIo(connection)`. No MSW fixado, `ws.link` casa com a origem WebSocket, pois o matcher remove `/socket.io/`. O worker inicia antes de importar o cliente, que captura o construtor WebSocket ao carregar o módulo. O diagnóstico mantém uma revisão de catálogo em memória na aba, compartilhada por REST e pelos eventos. O heartbeat Engine.IO mantém conexões abertas. Persistência, eventos privados, reconciliação de recursos ativos e isolamento por sessão pertencem aos ciclos seguintes.
+Visitantes recebem uma credencial opaca em `X-Guest-Cart`. Web Locks coordena sua criação entre abas. Login/cadastro consomem o carrinho visitante uma única vez e somam itens por NFT/edição na mesma transação. Excesso de estoque gera alerta e impede a compra até correção, sem descartar itens silenciosamente.
 
-Evento contém ID, tipo, identidade do recurso e versão monotônica. Cliente guarda marca por recurso e geração, descarta duplicados/antigos e invalida chaves relevantes; atualizações REST também passam pelo filtro de versão. Evento de NFT afeta listas (inclusive ordenação), detalhe, carrinho e cotação. Evento de pedido invalida status/carrinho; recibo depende de leitura REST confirmada. A reconexão refaz sessão, recursos ativos e tentativa pendente sem reenviar compra. Estado terminal não regride. Pedidos têm audiência privada e a simulação revalida a sessão antes de assinar e antes de emitir.
+Cada carrinho tem versão. Mutações enviam a versão conhecida e conflitos 409 provocam revalidação. Totais vêm de `POST /quotes`, incluindo cupom, subtotal, desconto, taxa e total. A cotação vale cinco minutos e captura versões, rede e linhas. `KURIO10` aplica desconto, `EXPIRADO` e códigos desconhecidos exercitam validação.
 
-| Cenário | Gatilho reproduzível / observação |
+ETH usa strings decimais com até 18 casas e operações em wei com BigInt. Desconto é truncado em wei. Total = subtotal − desconto + taxa. Quantidades são inteiros positivos. Valores de fixtures do Figma não substituem o orçamento da API.
+
+## Compra, idempotência e recuperação
+
+O fluxo é carteira cadastrada → seleção de rede → conexão simulada → dados do coletor → revisão → confirmação. A criação revalida cotação, estoque e conexão e reserva unidades na transação do pedido. Uma cotação obsoleta exige nova revisão explícita.
+
+Cada tentativa conserva chave aleatória e corpo normalizado, separados por conta no sessionStorage. O ledger usa proprietário e chave, com fingerprint do corpo. Repetir a mesma chave/corpo devolve o mesmo pedido. Reutilizá-la com outro corpo retorna 409. Não há retry automático de criação com chave nova.
+
+Após timeout, a UI consulta `GET /order-attempts/:key`. Se ausente, reenvia o mesmo corpo e chave. Isso atende tanto timeout antes do commit quanto depois da gravação. A tentativa é removida quando o cliente observa estado terminal.
+
+O pedido muda de pending para confirmed ou rejected uma única vez. Confirmação grava recibo imutável e deduz somente as unidades compradas. Recusa libera a reserva. Linhas reservadas não podem ser removidas ou reduzidas abaixo da reserva. Prazo e resultado são persistidos. Timers retomam pedidos pendentes na assinatura autenticada e leituras REST materializam transições vencidas após refresh.
+
+## Cache e reconciliação REST/Socket.IO
+
+| Recurso | Política |
 | --- | --- |
-| baseline / empty | Seed com catálogo que cruza páginas, filtros e edições; duas contas fictícias com dados diferentes; busca sem resultado |
-| slow / reordered | Latências por parâmetros; primeira busca mais lenta que a segunda; skeleton e URL correta |
-| network / HTTP | Erro de rede, timeout antes de gravação, 4xx e 5xx por operação/ocorrência; recuperação observável |
-| session / validation | Relógio controlado expira token durante navegação e revisão; acesso cruzado, e-mail repetido e campos inválidos |
-| coupons | Cupom válido, desconhecido e vencido com relógio controlado |
-| market | Alterar preço/estoque no store, emitir pela conexão; revisão perde validade; duplicata e versão antiga |
-| payment | Confirmar/recusar, interromper socket pendente, avançar relógio, reconectar; timeout após commit recupera mesmo ID |
+| Catálogo e detalhe | Chaves por parâmetros/ID, staleTime de 30 s, retry desativado |
+| Carrinho | Chave privada por geração, staleTime de 10 s, aceita versões não inferiores |
+| Sessão e demais consultas privadas | Revalidação conforme montagem/invalidação, sem retry automático nos fluxos críticos |
+| Favoritos | Atualização otimista, snapshot/rollback da mesma identidade e mutações serializadas |
+| Pedido pendente | Polling de contingência de 500 ms desconectado e 5 s conectado |
 
-Os controles de cenário passam pelos handlers REST do MSW. O procedimento de reset do README restaura o estado persistido, limpa chaves Kurio do navegador e recarrega a página, reiniciando conexões, timers e caches dessa aba. Os testes visuais usam contextos isolados e data fixa. O teste de timeout pré-commit atrasa uma resposta sem criar pedido, e o pós-commit atrasa a resposta após gravar a operação.
+O cliente usa namespace padrão, path `/socket.io` e transporte exclusivamente WebSocket. MSW 2.10.5 e `@mswjs/socket.io-binding` 0.2.0 interceptam o protocolo utilizado pelo cliente. O mock implementa heartbeat Engine.IO. Não depende de polling Engine.IO, binários ou acknowledgements.
 
-## Decisões em aberto e riscos
+A conexão envia `session.subscribe` com token ou null e recebe `session.ready` ou `session.invalid`. `nft.updated` é público. `order.updated` é emitido apenas para sessões válidas do proprietário. O token não é colocado na URL.
 
-O [inventário visual](docs/FIGMA.md) registra as referências disponíveis e as substituições de arte. A entrega usa versões WebP da arte original, com 480 px para cartões e 960 px para detalhes e zoom. As rotas de conta e compra carregam sob demanda. O HTML reserva descoberta antecipada da arte do hero em mobile, e o layout do detalhe reserva espaço acima do rodapé durante a consulta inicial.
+Eventos possuem eventId, resourceId, version, occurredAt, type e payload. A UI mantém a maior versão por tipo/recurso na geração corrente e ignora versões antigas ou repetidas. Uma mudança de NFT cancela consultas em andamento e invalida catálogo, detalhe, carrinho e cotação. Uma mudança de pedido invalida pedido, carrinho e cotação. O recibo completo sempre vem do REST. Na reconexão, recursos ativos e sessão são revalidados. Eventos avisam que houve alteração, não substituem a consulta autoritativa nem chamam setters da UI diretamente a partir de controles de cenário.
 
-A Vercel serve `dist` e aplica fallback para rotas SPA. O MSW inicia em todos os ambientes e intercepta HTTP na origem da aplicação. O cliente Socket.IO é importado depois do worker, pois Engine.IO captura o construtor WebSocket ao carregar o módulo. A publicação não requer API externa, variáveis de ambiente ou backend privado.
+## UX, responsividade e desvios do Figma
+
+A referência e a origem das artes estão em [FIGMA.md](docs/FIGMA.md). As seis imagens mobile fornecidas orientam telas abaixo de 768 px. A grade mobile tem duas colunas, filtros em painel e navegação inferior. O botão central leva a Criadores e tem rótulo acessível correspondente. Trocas de filtro/aba mantêm a rolagem. Painéis de ações consideram a área segura.
+
+O cabeçalho desktop abre autenticação em modal e o mobile usa `/login` e `/register`. Por solicitação posterior, finalizar compra como visitante abre o modal sobre o carrinho em ambas as larguras e segue ao checkout após autenticação. Fechar o modal preserva o carrinho. Acesso direto a uma rota privada continua protegido e oferece entrada com retorno.
+
+O checkout mobile preserva os dados obrigatórios do coletor e uma revisão explícita, mesmo que a imagem de referência omita essas etapas. Recibo, quantidades, preços e contadores refletem o estado da API. O popup de confirmação aparece somente para pedido confirmado. Perfil e carteiras são adaptados a uma coluna onde não havia frame mobile. Criadores usa perfis e posses de demonstração, sem um índice blockchain.
+
+Login social, newsletter, recuperação de senha e seções editoriais sem integração permanecem indisponíveis ou informativas. Carteiras e transações são simuladas, sem transferência real ou comprovante Etherscan real. Essas limitações são explícitas na interface. Não se afirma equivalência pixel a pixel com todos os frames. Baselines Playwright detectam regressões do layout implementado, não comprovam fidelidade ao Figma.
+
+## Publicação e operação
+
+Vercel publica `dist` com fallback SPA em `vercel.json`. O acesso direto e refresh de rotas retornam index.html e o Router resolve a tela. O service worker é revalidado com `Cache-Control: no-cache`. O MSW está habilitado no desenvolvimento, preview e deploy. Assets e fonte são locais. Não são necessárias variáveis de ambiente da aplicação.
+
+A instalação usa Node 24 e `npm ci` com o lockfile versionado. Não depende de `.env.local`, `.vercel`, banco pré-populado ou node_modules existente. HTTPS ou localhost é necessário para service worker, Web Locks e APIs de armazenamento. Bloquear service workers ou IndexedDB impede a simulação. Os controles `/__demo/*` existem no navegador interceptado e não são endpoints de servidor acessíveis por curl.
+
+O reset completo exige restaurar o banco pelo endpoint, limpar chaves Kurio e recarregar conforme README, com outras abas fechadas. A recarga restaura cenários/timers em memória. Não há painel administrativo público ou serviço remoto para manter.
+
+## Verificação e limites das evidências
+
+Playwright cobre fluxos de negócio, isolamento, recuperação, tempo real, responsividade e snapshots em Chromium desktop/mobile. Baselines versionadas são Windows, com possível diferença de fontes em outros sistemas. Lighthouse executa três rodadas para início/detalhe em mobile/desktop e verifica medianas. Comandos e resultados ficam no README e nos relatórios de entrega.
+
+A disponibilidade contínua depende da hospedagem e de o projeto/domínio permanecerem ativos. Verificações do deploy atestam a versão e o funcionamento no momento registrado, sem garantir uptime futuro. A simulação não oferece segurança de servidor, liquidação blockchain, OAuth, sincronização entre máquinas nem testes em todos os navegadores reais.

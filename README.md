@@ -1,6 +1,6 @@
 # Kurio Marketplace
 
-Marketplace de NFTs simulado em React e TypeScript. O catálogo e o detalhe consultam fixtures via MSW. O [backlog](docs/BACKLOG.md) registra os próximos fluxos.
+Marketplace de NFTs simulado em React e TypeScript. Catálogo, conta, carrinho e compra usam REST e Socket.IO simulados via MSW. O [backlog](docs/BACKLOG.md) registra a evolução das entregas.
 
 ## Executar
 
@@ -73,3 +73,68 @@ A auditoria Lighthouse faz build, sobe preview na porta 4183 e executa três rod
 A [aplicação publicada](https://marketplace-de-nft.vercel.app) está na Vercel. O [repositório de entrega](https://github.com/LucasArts2020/marketplace-de-nft) usa `vercel.json` para build Vite, fallback SPA e revalidação do service worker. Para rodar a suíte contra uma URL publicada, defina `KURIO_E2E_URL` com a origem HTTPS e execute `npm run test:e2e`.
 
 Consulte o [enunciado original](docs/DESAFIO_ORIGINAL.md), a [arquitetura](ARCHITECTURE.md), os [contratos](docs/CONTRATOS.md) a [referência visual](docs/FIGMA.md) e o [relatório de entrega](FINAL_DELIVERY_REPORT.md).
+
+## Ambiente e reprodução dos cenários
+
+Nenhuma variável é obrigatória para a aplicação. `KURIO_E2E_URL` é opcional e usado apenas pelo Playwright para testar uma origem publicada. `CHROME_PATH` é opcional e seleciona o executável Chromium/Chrome/Edge para Lighthouse. Não há chaves de API, conta Vercel ou arquivo `.env` necessários para executar localmente.
+
+| Comando | Finalidade |
+| --- | --- |
+| `npm ci` | Instalar exatamente o lockfile |
+| `npm run dev` | Desenvolvimento com mocks ativos |
+| `npm run build` | Gerar dist com mocks incluídos |
+| `npm run preview` | Servir o build local |
+| `npm run typecheck` | Verificar TypeScript |
+| `npm run lint` | Verificar ESLint |
+| `npx playwright install chromium` | Instalar navegador de testes |
+| `npm run test:e2e` | Build, preview e testes desktop/mobile |
+| `npm run audit:lighthouse` | Build, preview e 12 auditorias com metas |
+
+Em Linux, a instalação do navegador pode exigir `npx playwright install --with-deps chromium`. As baselines visuais fornecidas são Windows. Para comparar em outro sistema, gere e revise as referências desse sistema explicitamente, sem tratar diferenças de rasterização como aprovação automática.
+
+Execute os comandos abaixo no console do navegador com a aplicação já carregada. O MSW intercepta chamadas nessa aba. Chamadas via curl, terminal ou cliente HTTP externo não selecionam cenários do navegador. Recarregar restaura controles em memória, portanto selecione a falha e execute a ação na mesma aba, sem refresh intermediário.
+
+```js
+async function demo(path, body, authenticated = false) {
+  const response = await fetch('/__demo/' + path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(authenticated ? { Authorization: 'Bearer ' + localStorage.getItem('kurio.session') } : {}),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (!response.ok) throw new Error(await response.text())
+  return response.status
+}
+```
+
+| Cenário e comando | Ação e resultado esperado |
+| --- | --- |
+| `await demo('catalog', 'fail-next')` | Trocar uma aba/filtro do catálogo, observar erro 503 e tentar novamente |
+| `await demo('catalog', 'slow')` | Buscar Emerald e depois outro termo rapidamente, sem exibir a resposta antiga sobre a nova |
+| `await demo('catalog', 'default')` | Restaurar latência padrão |
+| `await demo('favorites/fail-next')` | Autenticado, favoritar um NFT, observar erro e rollback |
+| `await demo('session/expire', undefined, true)` | Autenticado, realizar próxima consulta privada, observar 401 e entrar novamente |
+| `await demo('payment', { scenario: 'connection-refused' })` | Tentar conectar carteira e observar recusa |
+| `await demo('payment', { scenario: 'reject' })` | Revisar e confirmar compra, observar pedido recusado e reserva liberada |
+| `await demo('payment', { scenario: 'timeout-before-commit' })` | Confirmar, aguardar timeout e usar Recuperar tentativa, com a mesma chave |
+| `await demo('payment', { scenario: 'timeout-after-commit' })` | Confirmar, aguardar timeout e recuperar o pedido já criado, sem duplicar |
+| `await demo('payment', { scenario: 'confirm' })` | Restaurar confirmação padrão para novas tentativas |
+| `await demo('socket', 'offline')` | Interromper conexão e observar estado/polling de contingência |
+| `await demo('socket', 'online')` | Reconectar e revalidar recursos ativos pelo REST |
+| `await demo('socket', { nftId: 'emerald-ape-042', editionId: 'limited', priceEth: '2.34' })` | Atualizar detalhe/carrinho, invalidar revisão anterior |
+| `await demo('socket', 'replay')` ou `await demo('socket', 'older')` | Após publicar uma mudança, ignorar duplicata/versão antiga |
+
+Para estoque, substitua priceEth por `available: 0` na atualização. Para catálogo vazio, busque um termo inexistente. Para cupom, use KURIO10, EXPIRADO e INVALIDO no carrinho. Para isolamento, conclua um pedido como Ana e abra sua URL como Bia, que não deve conseguir consultá-lo. O reset completo está na seção Executar e deve ser usado entre experimentos que alterem estoque, contas ou pedidos.
+
+No PowerShell, teste o deploy com:
+
+```powershell
+$env:KURIO_E2E_URL = 'https://marketplace-de-nft.vercel.app'
+npm.cmd run test:e2e
+Remove-Item Env:KURIO_E2E_URL
+```
+
+Código-fonte, `package-lock.json`, `public/art`, `public/mockServiceWorker.js`, fixtures em `src/mocks`, testes, baselines, `playwright.config.ts`, `scripts/lighthouse.mjs` e `vercel.json` compõem a entrega. A publicação não requer credenciais privadas para uso. Mantenha o projeto Vercel e o domínio ativos durante a avaliação.
+
